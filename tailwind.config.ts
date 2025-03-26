@@ -19,9 +19,6 @@ export default {
 			}
 		},
 		extend: {
-			fontFamily: {
-				sans: ['Inter', 'system-ui', 'sans-serif'],
-			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -65,6 +62,12 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				chat: {
+					sent: '#E1F5FE',
+					received: '#F5F5F5',
+					room: '#F0F7FF',
+					active: '#EBF5FF'
 				}
 			},
 			borderRadius: {
@@ -97,11 +100,9 @@ export default {
 					from: { transform: 'translateY(0)', opacity: '1' },
 					to: { transform: 'translateY(10px)', opacity: '0' }
 				},
-				'ping-slow': {
-					'75%, 100%': {
-						transform: 'scale(1.5)',
-						opacity: '0'
-					}
+				'pulse-light': {
+					'0%, 100%': { opacity: '1' },
+					'50%': { opacity: '0.7' }
 				}
 			},
 			animation: {
@@ -111,7 +112,7 @@ export default {
 				'fade-out': 'fade-out 0.3s ease-out',
 				'slide-in': 'slide-in 0.3s ease-out',
 				'slide-out': 'slide-out 0.3s ease-out',
-				'ping-slow': 'ping-slow 2s cubic-bezier(0, 0, 0.2, 1) infinite'
+				'pulse-light': 'pulse-light 2s ease-in-out infinite'
 			}
 		}
 	},

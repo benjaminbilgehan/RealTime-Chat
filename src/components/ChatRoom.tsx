@@ -1,109 +1,94 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Message, Room, User } from '@/services/socket';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Send } from 'lucide-react';
-import ChatMessage from './ChatMessage';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Separator } from '@/components/ui/separator';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, useEffect, useRef } from "react";
+import { Room, User, Message as MessageType } from "@/types";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { joinRoom, leaveRoom, sendMessage } from "@/lib/socket";
+import Message from "./Message";
+import { Send } from "lucide-react";
 
 interface ChatRoomProps {
   room: Room;
-  messages: Message[];
   currentUser: User;
-  onSendMessage: (text: string) => void;
 }
 
-const ChatRoom: React.FC<ChatRoomProps> = ({
-  room,
-  messages,
-  currentUser,
-  onSendMessage,
-}) => {
-  const [newMessage, setNewMessage] = useState('');
+const ChatRoom: React.FC<ChatRoomProps> = ({ room, currentUser }) => {
+  const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<MessageType[]>(room.messages || []);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const endOfMessagesRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom when messages change
   useEffect(() => {
-    endOfMessagesRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Join the room when component mounts
+    joinRoom(room.id);
+    
+    // Set up socket event listeners
+    const handleNewMessage = (newMessage: MessageType) => {
+      if (newMessage.roomId === room.id) {
+        setMessages((prevMessages) => [...prevMessages, newMessage]);
+      }
+    };
+    
+    // Add event listeners to socket
+    window.socket.on("new_message", handleNewMessage);
+    
+    // Clean up event listeners when component unmounts
+    return () => {
+      leaveRoom(room.id);
+      window.socket.off("new_message", handleNewMessage);
+    };
+  }, [room.id]);
+
+  useEffect(() => {
+    // Update messages when room changes
+    setMessages(room.messages || []);
+  }, [room.messages]);
+
+  useEffect(() => {
+    // Scroll to bottom when messages change
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
+    }
   }, [messages]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newMessage.trim()) {
-      onSendMessage(newMessage.trim());
-      setNewMessage('');
-    }
+    
+    if (!message.trim()) return;
+    
+    sendMessage(room.id, message);
+    setMessage("");
   };
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <div className="flex items-center px-4 py-3 border-b">
-        <div className="flex-1">
-          <h2 className="text-lg font-medium">{room.name}</h2>
-          <div className="flex items-center text-sm text-muted-foreground">
-            <span>{room.users.length} online</span>
-          </div>
-        </div>
-        <div className="flex -space-x-2">
-          {room.users.slice(0, 3).map((user) => (
-            <div
-              key={user.id}
-              className="w-8 h-8 rounded-full flex items-center justify-center bg-primary text-primary-foreground text-xs border-2 border-background"
-            >
-              {user.username.charAt(0).toUpperCase()}
-            </div>
-          ))}
-          {room.users.length > 3 && (
-            <Badge variant="secondary" className="ml-1">
-              +{room.users.length - 3}
-            </Badge>
-          )}
-        </div>
+    <div className="flex flex-col h-full">
+      <div className="p-4 border-b">
+        <h2 className="text-xl font-medium">{room.name}</h2>
       </div>
-
-      <ScrollArea
-        ref={scrollAreaRef}
-        className="flex-1 p-4"
-        scrollHideDelay={250}
-      >
-        {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-            <p>No messages yet</p>
-            <p className="text-sm">Be the first to send a message!</p>
-          </div>
-        ) : (
-          <AnimatePresence>
-            {messages.map((message) => (
-              <ChatMessage
-                key={message.id}
-                message={message}
-                isCurrentUser={message.sender.id === currentUser.id}
-              />
-            ))}
-          </AnimatePresence>
-        )}
-        <div ref={endOfMessagesRef} />
+      
+      <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+        <div className="space-y-2">
+          {messages.length === 0 && (
+            <div className="text-center text-gray-500 py-8">
+              No messages yet. Start the conversation!
+            </div>
+          )}
+          
+          {messages.map((msg) => (
+            <Message key={msg.id} message={msg} currentUser={currentUser} />
+          ))}
+        </div>
       </ScrollArea>
-
-      <div className="p-4 border-t bg-background">
-        <form onSubmit={handleSubmit} className="flex items-center gap-2">
+      
+      <div className="p-4 border-t">
+        <form onSubmit={handleSendMessage} className="flex space-x-2">
           <Input
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
             placeholder="Type a message..."
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
             className="flex-1"
           />
-          <Button
-            type="submit"
-            size="icon"
-            disabled={!newMessage.trim()}
-            className="transition-all duration-200"
-          >
+          <Button type="submit" size="icon">
             <Send className="h-4 w-4" />
           </Button>
         </form>
